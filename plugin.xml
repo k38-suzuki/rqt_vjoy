@@ -1,0 +1,17 @@
+<library path="lib/librqt_vjoy">
+  <class name="rqt_vjoy/MyPlugin" type="rqt_vjoy::MyPlugin" base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      An example C++ GUI plugin to create a great user interface.
+    </description>
+    <qtgui>
+      <group>
+        <label>Topics</label>
+        <icon type="theme">folder</icon>
+        <statustip>Plugins related to ROS topics.</statustip>
+      </group>
+      <label>Virtual Joystick</label>
+      <icon type="theme">input-gaming</icon>
+      <statustip>Great user interface to provide real value.</statustip>
+    </qtgui>
+  </class>
+</library>
