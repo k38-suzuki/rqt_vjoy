@@ -100,7 +100,6 @@ public:
 
     QToolButton buttons[NumJoystickElements];
     QLineEdit* topicLine;
-    QToolButton* publishButton;
     QSpinBox* rateSpin;
     QCheckBox* triggerCheck;
     QTimer* timer;
@@ -130,7 +129,7 @@ MyWidget::Impl::Impl(MyWidget* self)
     topicLine = new QLineEdit;
     topicLine->setText("joy");
 
-    publishButton = new QToolButton;
+    auto publishButton = new QToolButton;
     publishButton->setIcon(QIcon::fromTheme("network-wireless"));
     publishButton->setToolTip("Publish the joy topic");
     publishButton->setCheckable(true);
