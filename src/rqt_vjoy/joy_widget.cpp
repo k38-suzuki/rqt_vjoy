@@ -9,8 +9,12 @@
 
 #include <QBoxLayout>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMap>
@@ -18,6 +22,9 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QVector>
+
+#include <vector>
+#include <memory>
 
 #include <fcntl.h>
 #include <linux/joystick.h>
@@ -55,6 +62,18 @@ const ModelInfo modelInfo[] = {
     { Unsupported, nullptr,    nullptr       }
 };
 
+const QStringList buttonList = {
+    "A_BUTTON", "B_BUTTON", "X_BUTTON", "Y_BUTTON",
+    "LEFT_BUMPER", "RIGHT_BUMPER", "BACK_BUTTON", "START_BUTTON",
+    "GUIDE_BUTTON", "LEFT_STICK_BUTTON", "RIGHT_STICK_BUTTON"
+};
+
+const QStringList axisList = {
+    "LEFT_STICK_H", "LEFT_STICK_V", "LEFT_TRIGGER",
+    "RIGHT_STICK_H", "RIGHT_STICK_V", "RIGHT_TRIGGER",
+    "D_PAD_H", "D_PAD_V"
+};
+
 }
 
 namespace rqt_vjoy {
@@ -73,6 +92,30 @@ public:
 
     void setDevice(const QString& device);
 
+    struct AxisUnit
+    {
+        QComboBox* idCombo;
+        QDoubleSpinBox* maxSpin;
+        QCheckBox* reverseCheck;
+
+        ~AxisUnit()
+        {
+            delete idCombo;
+            delete maxSpin;
+            delete reverseCheck;
+        }
+    };
+
+    struct ButtonUnit
+    {
+        QComboBox*  idCombo;
+
+        ~ButtonUnit()
+        {
+            delete idCombo;
+        }
+    };
+
     QString identifierName;
     QLineEdit* topicLine;
     QToolButton* publishButton;
@@ -81,10 +124,14 @@ public:
     QLineEdit* deviceLine;
     QDoubleSpinBox* zoneSpin;
     QSpinBox* delaySpin;
+    QGridLayout* gridLayout;
+    QFormLayout* formLayout;
     QTimer* timer;
     QVector<int> axes;
     QVector<char> buttons;
     QVector<sensor_msgs::Joy> buffer;
+    std::vector<std::unique_ptr<AxisUnit>> axisUnits;
+    std::vector<std::unique_ptr<ButtonUnit>> buttonUnits;
 
     ros::NodeHandle n;
     ros::Publisher joy_pub;
@@ -108,6 +155,11 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     , is_ready(false)
 {
     self->setWindowTitle("Joystick");
+
+    axisUnits.clear();
+    buttonUnits.clear();
+    gridLayout = new QGridLayout;
+    formLayout = new QFormLayout;
     setDevice("/dev/input/js0");
 
     topicLine = new QLineEdit;
@@ -166,10 +218,22 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     timer = new QTimer(static_cast<QWidget*>(self));
     self->QWidget::connect(timer, &QTimer::timeout, [&](){ on_timer_timeout(); });
 
+    auto groupBox = new QGroupBox("Axes");
+    groupBox->setLayout(gridLayout);
+
+    auto groupBox2 = new QGroupBox("Buttons");
+    groupBox2->setLayout(formLayout);
+
+    auto layout5 = new QHBoxLayout;
+    layout5->addWidget(groupBox);
+    layout5->addWidget(groupBox2);
+    layout5->addStretch();
+
     auto layout = new QVBoxLayout;
     layout->addLayout(layout2);
     layout->addLayout(layout3);
     layout->addLayout(layout4);
+    layout->addLayout(layout5);
     layout->addStretch();
     self->setLayout(layout);
 }
@@ -220,6 +284,58 @@ void JoyWidget::Impl::setDevice(const QString& device)
         qDebug() << "Supported devices not found.";
     }
     currentModel = modelInfo[id];
+
+    axisUnits.clear();
+    axisUnits.resize(axes.size());
+    QStringList list;
+    for(size_t i = 0; i < axisUnits.size(); ++i) {
+        list << QString("%1").arg(i);
+    }
+
+    for(size_t i = 0; i < axisUnits.size(); ++i) {
+        auto& unit = axisUnits[i];
+        unit.reset(new AxisUnit);
+
+        unit->idCombo = new QComboBox(self);
+        if(axisUnits.size() == 8) {
+            unit->idCombo->addItems(list);
+        } else {
+            unit->idCombo->addItems(axisList);
+        }
+        unit->idCombo->setCurrentIndex(i);
+        unit->maxSpin = new QDoubleSpinBox(self);
+        unit->maxSpin->setRange(0.0, 1.0);
+        unit->maxSpin->setValue(1.0);
+        unit->reverseCheck = new QCheckBox(self);
+        unit->reverseCheck->setText("R");
+
+        gridLayout->addWidget(new QLabel(QString("ID %1").arg(i)), i, 0);
+        gridLayout->addWidget(unit->idCombo, i, 1);
+        gridLayout->addWidget(new QLabel("Max"), i, 2);
+        gridLayout->addWidget(unit->maxSpin, i, 3);
+        gridLayout->addWidget(unit->reverseCheck, i, 4);
+    }
+
+    buttonUnits.clear();
+    buttonUnits.resize(buttons.size());
+    QStringList list2;
+    for(size_t i = 0; i < buttonUnits.size(); ++i) {
+        list2 << QString("%1").arg(i);
+    }
+
+    for(size_t i = 0; i < buttonUnits.size(); ++i) {
+        auto& unit = buttonUnits[i];
+        unit.reset(new ButtonUnit);
+
+        unit->idCombo = new QComboBox(self);
+        if(buttonUnits.size() == 11) {
+            unit->idCombo->addItems(buttonList);
+        } else {
+            unit->idCombo->addItems(list2);
+        }
+
+        formLayout->addRow(QString("ID %1").arg(i), unit->idCombo);
+    }
 }
 
 bool JoyWidget::ready()
@@ -323,23 +439,33 @@ void JoyWidget::Impl::on_timer_timeout()
     joy_msg.header.frame_id = deviceLine->text().toStdString().c_str();
 
     self->read_current_state();
-    joy_msg.axes.resize(self->num_axes());
-    joy_msg.buttons.resize(self->num_buttons());
 
+    joy_msg.axes.resize(self->num_axes());
     for(int i = 0; i < self->num_axes(); ++i) {
-        joy_msg.axes[i] = self->axis(i);
+        auto& unit = axisUnits[i];
+        int id = unit->idCombo->currentIndex();
+        double max = unit->maxSpin->value();
+        bool is_reversed = unit->reverseCheck->isChecked();
+
+        joy_msg.axes[i] = self->axis(id);
         double dead_zone = zoneSpin->value();
         if(joy_msg.axes[i] < dead_zone) {
             joy_msg.axes[i] = 0.0;
         }
+        joy_msg.axes[i] *= max;
+        joy_msg.axes[i] *= is_reversed ? -1.0 : 1.0;
     }
-    for(int i = 0; i < self->num_buttons(); ++i) {
-        joy_msg.buttons[i] = self->button(i);
-    }
-
     if(triggerCheck->isChecked()) {
         joy_msg.axes[2] = joy_msg.axes[2] == -1 ? 0 : joy_msg.axes[2];
         joy_msg.axes[5] = joy_msg.axes[5] == -1 ? 0 : joy_msg.axes[5];
+    }
+
+    joy_msg.buttons.resize(self->num_buttons());
+    for(int i = 0; i < self->num_buttons(); ++i) {
+        auto& unit = buttonUnits[i];
+        int id = unit->idCombo->currentIndex();
+
+        joy_msg.buttons[i] = self->button(id);
     }
 
     buffer.push_back(joy_msg);

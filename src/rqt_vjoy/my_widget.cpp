@@ -294,20 +294,21 @@ void MyWidget::Impl::on_timer_timeout()
     joy_msg.header.frame_id = "vjoy";
 
     self->read_current_state();
-    joy_msg.axes.resize(self->num_axes());
-    joy_msg.buttons.resize(self->num_buttons());
 
+    joy_msg.axes.resize(self->num_axes());
     for(int i = 0; i < self->num_axes(); ++i) {
         joy_msg.axes[i] = self->axis(i);
     }
-    for(int i = 0; i < self->num_buttons(); ++i) {
-        joy_msg.buttons[i] = self->button(i);
-    }
-
     if(triggerCheck->isChecked()) {
         joy_msg.axes[2] = joy_msg.axes[2] == -1 ? 0 : joy_msg.axes[2];
         joy_msg.axes[5] = joy_msg.axes[5] == -1 ? 0 : joy_msg.axes[5];
     }
+
+    joy_msg.buttons.resize(self->num_buttons());
+    for(int i = 0; i < self->num_buttons(); ++i) {
+        joy_msg.buttons[i] = self->button(i);
+    }
+
     joy_pub.publish(joy_msg);
 }
 
