@@ -80,9 +80,11 @@ public:
     QCheckBox* triggerCheck;
     QLineEdit* deviceLine;
     QDoubleSpinBox* zoneSpin;
+    QSpinBox* delaySpin;
     QTimer* timer;
     QVector<int> axes;
     QVector<char> buttons;
+    QVector<sensor_msgs::Joy> buffer;
 
     ros::NodeHandle n;
     ros::Publisher joy_pub;
@@ -134,6 +136,10 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     zoneSpin->setRange(0.0, 1.0);
     zoneSpin->setValue(0.05);
 
+    delaySpin = new QSpinBox;
+    delaySpin->setRange(0, 10000);
+    delaySpin->setValue(0);
+
     auto layout2 = new QHBoxLayout;
     layout2->addWidget(new QLabel("Topic"));
     layout2->addWidget(topicLine);
@@ -152,6 +158,9 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     layout4->addWidget(deviceLine);
     layout4->addWidget(new QLabel("Dead zone"));
     layout4->addWidget(zoneSpin);
+    layout4->addWidget(new QLabel("Delay"));
+    layout4->addWidget(delaySpin);
+    layout4->addWidget(new QLabel("ms"));
     layout4->addStretch();
 
     timer = new QTimer(static_cast<QWidget*>(self));
@@ -292,7 +301,11 @@ void JoyWidget::Impl::on_publishButton_toggled(bool checked)
         joy_pub = n.advertise<sensor_msgs::Joy>(topic_name, 1);
 
         int rate = rateSpin->value();
+        int delay = delaySpin->value();
         if(rate == 0) {
+            buffer.clear();
+            buffer.resize(delay);
+            ROS_INFO("Buffer has been resized %d.", delay);
             timer->start(1);
         } else {
             timer->start(1000 / rate);
@@ -328,7 +341,10 @@ void JoyWidget::Impl::on_timer_timeout()
         joy_msg.axes[2] = joy_msg.axes[2] == -1 ? 0 : joy_msg.axes[2];
         joy_msg.axes[5] = joy_msg.axes[5] == -1 ? 0 : joy_msg.axes[5];
     }
-    joy_pub.publish(joy_msg);
+
+    buffer.push_back(joy_msg);
+    sensor_msgs::Joy first_msg = buffer.takeFirst();
+    joy_pub.publish(first_msg);
 }
 
 }
