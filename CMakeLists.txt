@@ -28,12 +28,14 @@ set(sources
   src/${PROJECT_NAME}/my_plugin.cpp
   src/${PROJECT_NAME}/my_widget.cpp
   src/${PROJECT_NAME}/joystick_interface.cpp
+  src/${PROJECT_NAME}/joy_widget.cpp
 )
 
 set(headers
   include/${PROJECT_NAME}/my_plugin.h
   include/${PROJECT_NAME}/my_widget.h
   include/${PROJECT_NAME}/joystick_interface.h
+  include/${PROJECT_NAME}/joy_widget.h
 )
 
 qt5_wrap_cpp(rqt_vjoy_moc ${headers})

@@ -9,15 +9,19 @@
 
 #include <QBoxLayout>
 #include <QCheckBox>
-#include <QFormLayout>
+#include <QGroupBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPalette>
+#include <QRadioButton>
 #include <QSpinBox>
+#include <QStackedLayout>
 #include <QTimer>
 #include <QToolButton>
 #include <QVector>
+
+#include "rqt_vjoy/joy_widget.h"
 
 namespace {
 
@@ -95,9 +99,10 @@ public:
     };
 
     QToolButton buttons[NumJoystickElements];
+    QLineEdit* topicLine;
+    QToolButton* publishButton;
     QSpinBox* rateSpin;
     QCheckBox* triggerCheck;
-    QToolButton* publishButton;
     QTimer* timer;
     QVector<double> axisPositions;
     QVector<bool> buttonStates;
@@ -119,10 +124,18 @@ MyWidget::Impl::Impl(MyWidget* self)
     self->setWindowTitle("Virtual Joystick");
     self->setFocusPolicy(Qt::WheelFocus);
 
-    joy_pub = n.advertise<sensor_msgs::Joy>("joy", 1);
-
     axisPositions.fill(0.0, 8);
     buttonStates.fill(0.0, 11);
+
+    topicLine = new QLineEdit;
+    topicLine->setText("joy");
+
+    publishButton = new QToolButton;
+    publishButton->setIcon(QIcon::fromTheme("network-wireless"));
+    publishButton->setToolTip("Publish the joy topic");
+    publishButton->setCheckable(true);
+    self->QWidget::connect(publishButton, &QToolButton::toggled,
+        [&](bool checked){ on_publishButton_toggled(checked); });
 
     rateSpin = new QSpinBox;
     rateSpin->setRange(0, 1000);
@@ -131,20 +144,18 @@ MyWidget::Impl::Impl(MyWidget* self)
     triggerCheck = new QCheckBox;
     triggerCheck->setText("Default trigger value");
 
-    publishButton = new QToolButton;
-    publishButton->setIcon(QIcon::fromTheme("network-wireless"));
-    publishButton->setToolTip("publish the joy topic");
-    publishButton->setCheckable(true);
-    self->QWidget::connect(publishButton, &QToolButton::toggled,
-        [&](bool checked){ on_publishButton_toggled(checked); });
-
     auto layout2 = new QHBoxLayout;
-    layout2->addWidget(new QLabel("Autorepeat rate"));
-    layout2->addWidget(rateSpin);
-    layout2->addWidget(new QLabel("Hz"));
-    layout2->addWidget(triggerCheck);
+    layout2->addWidget(new QLabel("Topic"));
+    layout2->addWidget(topicLine);
     layout2->addWidget(publishButton);
     layout2->addStretch();
+
+    auto layout3 = new QHBoxLayout;
+    layout3->addWidget(new QLabel("Autorepeat rate"));
+    layout3->addWidget(rateSpin);
+    layout3->addWidget(new QLabel("Hz"));
+    layout3->addWidget(triggerCheck);
+    layout3->addStretch();
 
     auto gridLayout = new QGridLayout;
     for(int i = 0; i < NumJoystickElements; ++i) {
@@ -157,15 +168,38 @@ MyWidget::Impl::Impl(MyWidget* self)
         gridLayout->addWidget(&button, info.row, info.column);
     }
 
-    QWidget* self2 = static_cast<QWidget*>(self);
-    timer = new QTimer(self2);
+    timer = new QTimer(static_cast<QWidget*>(self));
     self->QWidget::connect(timer, &QTimer::timeout, [&](){ on_timer_timeout(); });
 
+    auto layout4 = new QVBoxLayout;
+    layout4->addLayout(layout2);
+    layout4->addLayout(layout3);
+    layout4->addLayout(gridLayout);
+    layout4->addStretch();
+
+    auto vjoyWidget = new QWidget;
+    vjoyWidget->setLayout(layout4);
+
+    auto stackedLayout = new QStackedLayout;
+    stackedLayout->addWidget(vjoyWidget);
+    stackedLayout->addWidget(new JoyWidget);
+
+    auto radio1 = new QRadioButton("vjoy");
+    auto radio2 = new QRadioButton("joy");
+    radio1->setChecked(true);
+    self->QWidget::connect(radio1, &QRadioButton::toggled, [=](bool checked){
+        stackedLayout->setCurrentIndex(checked ? 0 : 1); });
+
+    auto layout5 = new QHBoxLayout;
+    layout5->addWidget(radio1);
+    layout5->addWidget(radio2);
+    layout5->addStretch();
+
     auto layout = new QVBoxLayout;
-    layout->addLayout(layout2);
-    layout->addLayout(gridLayout);
+    layout->addLayout(layout5);
+    layout->addLayout(stackedLayout);
     layout->addStretch();
-    self->setLayout(layout);    
+    self->setLayout(layout);
 }
 
 MyWidget::~MyWidget()
@@ -184,14 +218,14 @@ void MyWidget::read_current_state()
 
 }
 
-float MyWidget::axis(const int& id)
+float MyWidget::axis(const int& axisId)
 {
-    return impl->axisPositions[id];
+    return impl->axisPositions[axisId];
 }
 
-bool MyWidget::button(const int& id)
+bool MyWidget::button(const int& buttonId)
 {
-    return impl->buttonStates[id];
+    return impl->buttonStates[buttonId];
 }
 
 int MyWidget::num_axes()
@@ -238,6 +272,9 @@ void MyWidget::Impl::on_toolButton_released(int arg1)
 void MyWidget::Impl::on_publishButton_toggled(bool checked)
 {
     if(checked) {
+        const char* topic_name = topicLine->text().toStdString().c_str();
+        joy_pub = n.advertise<sensor_msgs::Joy>(topic_name, 1);
+
         int rate = rateSpin->value();
         if(rate == 0) {
             timer->start(1);
@@ -245,6 +282,7 @@ void MyWidget::Impl::on_publishButton_toggled(bool checked)
             timer->start(1000 / rate);
         }
     } else {
+        joy_pub.shutdown();
         timer->stop();
     }
 }
@@ -253,6 +291,7 @@ void MyWidget::Impl::on_timer_timeout()
 {
     sensor_msgs::Joy joy_msg;
     joy_msg.header.stamp = ros::Time().now();
+    joy_msg.header.frame_id = "vjoy";
 
     self->read_current_state();
     joy_msg.axes.resize(self->num_axes());

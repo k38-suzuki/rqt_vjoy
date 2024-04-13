@@ -20,8 +20,8 @@ public:
 
     virtual bool ready() override;
     virtual void read_current_state() override;
-    virtual float axis(const int& id) override;
-    virtual bool button(const int& id) override;
+    virtual float axis(const int& axisId) override;
+    virtual bool button(const int& buttonId) override;
     virtual int num_axes() override;
     virtual int num_buttons() override;
 
