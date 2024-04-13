@@ -4,8 +4,8 @@
 
 #include "rqt_vjoy/joy_widget.h"
 
-#include "ros/ros.h"
-#include "sensor_msgs/Joy.h"
+#include <ros/ros.h>
+#include <sensor_msgs/Joy.h>
 
 #include <QBoxLayout>
 #include <QCheckBox>
