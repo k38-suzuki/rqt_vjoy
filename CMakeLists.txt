@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rqt_gui
   rqt_gui_cpp
+  sensor_msgs
   std_msgs
 )
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
@@ -14,7 +15,7 @@ find_package(Qt5 COMPONENTS Widgets REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES rqt_vjoy
-  CATKIN_DEPENDS roscpp rqt_gui rqt_gui_cpp std_msgs
+  CATKIN_DEPENDS roscpp rqt_gui rqt_gui_cpp sensor_msgs std_msgs
 #  DEPENDS system_lib
 )
 
