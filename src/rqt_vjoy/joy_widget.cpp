@@ -12,7 +12,6 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
-#include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
@@ -94,13 +93,17 @@ public:
 
     struct AxisUnit
     {
+        QLabel* idLabel;
         QComboBox* idCombo;
+        QLabel* maxLabel;
         QDoubleSpinBox* maxSpin;
         QCheckBox* reverseCheck;
 
         ~AxisUnit()
         {
+            delete idLabel;
             delete idCombo;
+            delete maxLabel;
             delete maxSpin;
             delete reverseCheck;
         }
@@ -108,10 +111,12 @@ public:
 
     struct ButtonUnit
     {
+        QLabel* idLabel;
         QComboBox*  idCombo;
 
         ~ButtonUnit()
         {
+            delete idLabel;
             delete idCombo;
         }
     };
@@ -125,7 +130,7 @@ public:
     QDoubleSpinBox* zoneSpin;
     QSpinBox* delaySpin;
     QGridLayout* gridLayout;
-    QFormLayout* formLayout;
+    QGridLayout* gridLayout2;
     QTimer* timer;
     QVector<int> axes;
     QVector<char> buttons;
@@ -159,13 +164,11 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     axisUnits.clear();
     buttonUnits.clear();
     gridLayout = new QGridLayout;
-    formLayout = new QFormLayout;
+    gridLayout2 = new QGridLayout;
     setDevice("/dev/input/js0");
 
     topicLine = new QLineEdit;
     topicLine->setText("joy");
-    self->QWidget::connect(topicLine, &QLineEdit::textChanged,
-        [&](const QString& text){ setDevice(text); });
 
     publishButton = new QToolButton;
     publishButton->setIcon(QIcon::fromTheme("network-wireless"));
@@ -183,6 +186,8 @@ JoyWidget::Impl::Impl(JoyWidget* self)
 
     deviceLine = new QLineEdit;
     deviceLine->setText("/dev/input/js0");
+    self->QWidget::connect(deviceLine, &QLineEdit::textChanged,
+        [&](const QString& text){ setDevice(text); });
 
     zoneSpin = new QDoubleSpinBox;
     zoneSpin->setRange(0.0, 1.0);
@@ -219,10 +224,20 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     self->QWidget::connect(timer, &QTimer::timeout, [&](){ on_timer_timeout(); });
 
     auto groupBox = new QGroupBox("Axes");
-    groupBox->setLayout(gridLayout);
+    {
+        auto layout = new QVBoxLayout;
+        layout->addLayout(gridLayout);
+        layout->addStretch();
+        groupBox->setLayout(layout);
+    }
 
     auto groupBox2 = new QGroupBox("Buttons");
-    groupBox2->setLayout(formLayout);
+    {
+        auto layout = new QVBoxLayout;
+        layout->addLayout(gridLayout2);
+        layout->addStretch();
+        groupBox2->setLayout(layout);
+    }
 
     auto layout5 = new QHBoxLayout;
     layout5->addWidget(groupBox);
@@ -296,6 +311,7 @@ void JoyWidget::Impl::setDevice(const QString& device)
         auto& unit = axisUnits[i];
         unit.reset(new AxisUnit);
 
+        unit->idLabel = new QLabel(QString("ID %1").arg(i));
         unit->idCombo = new QComboBox(self);
         if(axisUnits.size() == 8) {
             unit->idCombo->addItems(list);
@@ -303,15 +319,16 @@ void JoyWidget::Impl::setDevice(const QString& device)
             unit->idCombo->addItems(axisList);
         }
         unit->idCombo->setCurrentIndex(i);
+        unit->maxLabel = new QLabel("Max");
         unit->maxSpin = new QDoubleSpinBox(self);
         unit->maxSpin->setRange(0.0, 1.0);
         unit->maxSpin->setValue(1.0);
         unit->reverseCheck = new QCheckBox(self);
         unit->reverseCheck->setText("R");
 
-        gridLayout->addWidget(new QLabel(QString("ID %1").arg(i)), i, 0);
+        gridLayout->addWidget(unit->idLabel, i, 0);
         gridLayout->addWidget(unit->idCombo, i, 1);
-        gridLayout->addWidget(new QLabel("Max"), i, 2);
+        gridLayout->addWidget(unit->maxLabel, i, 2);
         gridLayout->addWidget(unit->maxSpin, i, 3);
         gridLayout->addWidget(unit->reverseCheck, i, 4);
     }
@@ -327,14 +344,17 @@ void JoyWidget::Impl::setDevice(const QString& device)
         auto& unit = buttonUnits[i];
         unit.reset(new ButtonUnit);
 
+        unit->idLabel = new QLabel(QString("ID %1").arg(i));
         unit->idCombo = new QComboBox(self);
         if(buttonUnits.size() == 11) {
             unit->idCombo->addItems(buttonList);
         } else {
             unit->idCombo->addItems(list2);
         }
+        unit->idCombo->setCurrentIndex(i);
 
-        formLayout->addRow(QString("ID %1").arg(i), unit->idCombo);
+        gridLayout2->addWidget(unit->idLabel, i, 0);
+        gridLayout2->addWidget(unit->idCombo, i, 1);
     }
 }
 
@@ -449,7 +469,7 @@ void JoyWidget::Impl::on_timer_timeout()
 
         joy_msg.axes[i] = self->axis(id);
         double dead_zone = zoneSpin->value();
-        if(joy_msg.axes[i] < dead_zone) {
+        if(fabs(joy_msg.axes[i]) < dead_zone) {
             joy_msg.axes[i] = 0.0;
         }
         joy_msg.axes[i] *= max;
