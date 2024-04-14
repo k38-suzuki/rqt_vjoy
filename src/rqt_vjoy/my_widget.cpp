@@ -281,8 +281,8 @@ void MyWidget::Impl::on_publishButton_toggled(bool checked)
             timer->start(1000 / rate);
         }
     } else {
-        joy_pub.shutdown();
         timer->stop();
+        joy_pub.shutdown();
     }
 }
 
