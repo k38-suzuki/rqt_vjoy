@@ -84,7 +84,7 @@ public:
 
     void on_toolButton_pressed(int arg1);
     void on_toolButton_released(int arg1);
-    void on_publishButton_toggled(bool checked);
+    void on_toolButton_toggled(bool checked);
     void on_timer_timeout();
 
     enum {
@@ -129,12 +129,12 @@ MyWidget::Impl::Impl(MyWidget* self)
     topicLine = new QLineEdit;
     topicLine->setText("joy");
 
-    auto publishButton = new QToolButton;
-    publishButton->setIcon(QIcon::fromTheme("network-wireless"));
-    publishButton->setToolTip("Publish the joy topic");
-    publishButton->setCheckable(true);
-    self->QWidget::connect(publishButton, &QToolButton::toggled,
-        [&](bool checked){ on_publishButton_toggled(checked); });
+    auto button = new QToolButton;
+    button->setIcon(QIcon::fromTheme("network-wireless"));
+    button->setToolTip("Publish the joy topic");
+    button->setCheckable(true);
+    self->QWidget::connect(button, &QToolButton::toggled,
+        [&](bool checked){ on_toolButton_toggled(checked); });
 
     rateSpin = new QSpinBox;
     rateSpin->setRange(0, 1000);
@@ -146,7 +146,7 @@ MyWidget::Impl::Impl(MyWidget* self)
     auto layout2 = new QHBoxLayout;
     layout2->addWidget(new QLabel("Topic"));
     layout2->addWidget(topicLine);
-    layout2->addWidget(publishButton);
+    layout2->addWidget(button);
     layout2->addStretch();
 
     auto layout3 = new QHBoxLayout;
@@ -268,7 +268,7 @@ void MyWidget::Impl::on_toolButton_released(int arg1)
     buttons[arg1].setPalette(palette);
 }
 
-void MyWidget::Impl::on_publishButton_toggled(bool checked)
+void MyWidget::Impl::on_toolButton_toggled(bool checked)
 {
     if(checked) {
         const char* topic_name = topicLine->text().toStdString().c_str();

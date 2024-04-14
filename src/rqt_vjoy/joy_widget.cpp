@@ -84,7 +84,7 @@ public:
 
     Impl(JoyWidget* self);
 
-    void on_publishButton_toggled(bool checked);
+    void on_toolButton_toggled(bool checked);
     void on_timer_timeout();
 
     void read_current_state();
@@ -169,12 +169,12 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     topicLine = new QLineEdit;
     topicLine->setText("joy");
 
-    auto publishButton = new QToolButton;
-    publishButton->setIcon(QIcon::fromTheme("network-wireless"));
-    publishButton->setToolTip("Publish the joy topic");
-    publishButton->setCheckable(true);
-    self->QWidget::connect(publishButton, &QToolButton::toggled,
-        [&](bool checked){ on_publishButton_toggled(checked); });
+    auto button = new QToolButton;
+    button->setIcon(QIcon::fromTheme("network-wireless"));
+    button->setToolTip("Publish the joy topic");
+    button->setCheckable(true);
+    self->QWidget::connect(button, &QToolButton::toggled,
+        [&](bool checked){ on_toolButton_toggled(checked); });
 
     rateSpin = new QSpinBox;
     rateSpin->setRange(0, 1000);
@@ -199,7 +199,7 @@ JoyWidget::Impl::Impl(JoyWidget* self)
     auto layout2 = new QHBoxLayout;
     layout2->addWidget(new QLabel("Topic"));
     layout2->addWidget(topicLine);
-    layout2->addWidget(publishButton);
+    layout2->addWidget(button);
     layout2->addStretch();
 
     auto layout3 = new QHBoxLayout;
@@ -429,7 +429,7 @@ QString JoyWidget::identifier() const
     return impl->identifierName;
 }
 
-void JoyWidget::Impl::on_publishButton_toggled(bool checked)
+void JoyWidget::Impl::on_toolButton_toggled(bool checked)
 {
     if(checked) {
         const char* topic_name = topicLine->text().toStdString().c_str();
