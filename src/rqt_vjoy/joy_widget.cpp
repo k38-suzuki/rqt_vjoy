@@ -112,7 +112,7 @@ public:
     struct ButtonUnit
     {
         QLabel* idLabel;
-        QComboBox*  idCombo;
+        QComboBox* idCombo;
 
         ~ButtonUnit()
         {
