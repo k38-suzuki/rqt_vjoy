@@ -134,11 +134,12 @@ public:
     QVector<int> axes;
     QVector<char> buttons;
     QVector<sensor_msgs::Joy> buffer;
-    std::vector<std::unique_ptr<AxisUnit>> axisUnits;
-    std::vector<std::unique_ptr<ButtonUnit>> buttonUnits;
 
     ros::NodeHandle n;
     ros::Publisher joy_pub;
+
+    std::vector<std::unique_ptr<AxisUnit>> axisUnits;
+    std::vector<std::unique_ptr<ButtonUnit>> buttonUnits;    
 
     bool is_ready;
     int joy_fd;
